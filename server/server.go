@@ -1,16 +1,54 @@
 package main
 
 import (
+	msg "bitcoin_miner/message"
+	"bitcoin_miner/server/miner"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"strconv"
 )
 
-func startServer(port int) {
+func startServer(port int) error{
 	// TODO: implement this!
+	address := fmt.Sprintf(":%v",port)
+	ln, err := net.Listen("tcp", address)
+	if err != nil {
+		return err
+	}
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		go handleConnection(conn)
+	}
+}
 
-	return //Should probably return something actually
+func handleConnection(conn net.Conn) {
+
+	req, err := msg.FromJSONReader(conn)
+
+	if err != nil {
+		fmt.Println(err)
+		conn.Close()
+		return
+	}
+
+	respChan,err := miner.SubmitJob(req)
+
+	resp := <-respChan
+	respJson,err := resp.ToJSON()
+
+	if err != nil {
+		fmt.Println(err)
+		conn.Close()
+		return
+	}
+
+	conn.Write(respJson)
 }
 
 var LOGF *log.Logger

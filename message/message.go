@@ -5,6 +5,7 @@ package message
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 )
 
 type MsgType int
@@ -42,6 +43,12 @@ func (msg *Message) ToJSON() ([]byte, error) {
 func FromJSON(data []byte) (*Message, error) {
 	var m Message
 	err := json.Unmarshal(data, &m)
+	return &m, err
+}
+
+func FromJSONReader(reader io.Reader) (*Message, error) {
+	var m Message
+	err := json.NewDecoder(reader).Decode(&m)
 	return &m, err
 }
 

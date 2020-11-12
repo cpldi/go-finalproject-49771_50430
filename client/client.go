@@ -1,7 +1,9 @@
 package main
 
 import (
+	msg "bitcoin_miner/message"
 	"fmt"
+	"net"
 	"os"
 	"strconv"
 )
@@ -20,12 +22,36 @@ func main() {
 		return
 	}
 
-	//These are here to make the compiler cooperate. Remove.
-	_ = host
-	_ = message
-	_ = max
+	response, err := sendRequest(message,host,max)
+	if err != nil {
+		fmt.Printf("Error parsing response : %v  ",err)
+		return
+	}
+	printResult(response.Hash, response.Nonce)
+}
 
-	printResult(0, 0)
+func sendRequest(message string, host string, max uint64) (*msg.Message,error) {
+	conn, err := net.Dial("tcp", host)
+
+	if err != nil {
+		return nil,err
+	}
+
+	req := msg.NewRequest(message,0,max)
+	jsonb,err := req.ToJSON()
+	_,err = conn.Write(jsonb)
+
+	if err != nil {
+		return nil,err
+	}
+
+	response , err := msg.FromJSONReader(conn)
+
+	if err != nil {
+		return nil,err
+	}
+
+	return response,nil
 }
 
 // printResult prints the final result to stdout.
