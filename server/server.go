@@ -11,8 +11,8 @@ import (
 )
 
 func startServer(port int) error{
-	// TODO: implement this!
 	address := fmt.Sprintf(":%v",port)
+	LOGF.Printf("Starting server at %v\n",address)
 	ln, err := net.Listen("tcp", address)
 	if err != nil {
 		return err
@@ -31,12 +31,13 @@ func handleConnection(conn net.Conn) {
 
 	req, err := msg.FromJSONReader(conn)
 
-	if err != nil {
+	if err != nil && isCorrect(req){
 		fmt.Println(err)
 		conn.Close()
 		return
 	}
 
+	LOGF.Printf("Submiting Job %v \n",req)
 	respChan,err := miner.SubmitJob(req)
 
 	resp := <-respChan
@@ -49,6 +50,12 @@ func handleConnection(conn net.Conn) {
 	}
 
 	conn.Write(respJson)
+}
+
+func isCorrect(req *msg.Message) bool {
+	return  req.Type == msg.Request &&
+			req.Nonce >= req.Lower &&
+			len(req.Data) > 0
 }
 
 var LOGF *log.Logger
