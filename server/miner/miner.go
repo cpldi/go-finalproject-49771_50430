@@ -4,12 +4,12 @@ import (
 	"bitcoin_miner/hash"
 	msg "bitcoin_miner/message"
 	"context"
-	"fmt"
 )
 
 const (
-	THRESHOLD_BLOCK_SIZE  = 10
-	THRESHOLD_LIGHT_HEAVY = 5
+	THRESHOLD_BLOCK_SIZE  = 100000
+	THRESHOLD_LIGHT_HEAVY = 50
+	BUFFERED_CHANNEL_SIZE = 10
 )
 
 type Miner struct {
@@ -58,21 +58,21 @@ func Worker(ctxt context.Context, id int, inDefault, inOther <-chan workReq) {
 		case <-ctxt.Done():
 			return
 		case req := <-inDefault:
-			computeHigherHash(req)
+			computeHigherHash(req,id)
 		default:
 			{
 				select {
 				case req := <-inOther:
-					computeHigherHash(req)
+					computeHigherHash(req,id)
 				case req := <-inDefault:
-					computeHigherHash(req)
+					computeHigherHash(req,id)
 				}
 			}
 		}
 	}
 }
 
-func computeHigherHash(req workReq) {
+func computeHigherHash(req workReq,id int) {
 	var max uint64
 	var maxi uint64
 	for i := req.Lower; i <= req.Upper; i++ {
@@ -82,7 +82,7 @@ func computeHigherHash(req workReq) {
 			maxi = i
 		}
 	}
-	fmt.Printf("computed between %v and %v\n", req.Lower, req.Upper)
+	//fmt.Printf("[%v] [%v] computed between %v and %v\n",id, time.Now() , req.Lower, req.Upper)
 	req.workCh <- workResp{max, maxi}
 }
 
@@ -100,36 +100,37 @@ func min(x, y uint64) uint64 {
 func submitBlocks(blocks uint64, in chan<- workReq, request *msg.Message, respCh chan workResp) {
 	var i uint64
 
-	fmt.Printf("wants to submit %v blocks.\n", blocks+1)
+	//fmt.Printf("wants to submit %v blocks.\n", blocks+1)
 	for i = 0; i <= blocks; i++ {
 		in <- workReq{
 			request.Data,
 			request.Lower + THRESHOLD_BLOCK_SIZE*i,
 			min(request.Lower+THRESHOLD_BLOCK_SIZE*(i+1)-1, request.Upper),
 			respCh}
-		fmt.Printf("submitted block %v.\n", i+1)
+		//fmt.Printf("submitted block %v.\n", i+1)
 	}
-	fmt.Printf("submitted %v blocks.\n", blocks+1)
+	//fmt.Printf("submitted %v blocks.\n", blocks+1)
 }
 
 func (m *Miner) SubmitJob(request *msg.Message) *msg.Message {
 
 	blocks := (request.Upper - request.Lower) / THRESHOLD_BLOCK_SIZE
-	respCh := make(chan workResp, blocks)
+	respCh := make(chan workResp, BUFFERED_CHANNEL_SIZE)
+
 
 	if blocks < THRESHOLD_LIGHT_HEAVY {
-		submitBlocks(blocks, m.inL, request, respCh)
+		go submitBlocks(blocks, m.inL, request, respCh)
 	} else {
-		submitBlocks(blocks, m.inH, request, respCh)
+		go submitBlocks(blocks, m.inH, request, respCh)
 	}
 
 	max := <-respCh
 	var i uint64
 	for i = 0; i < blocks; i++ {
 		max = max.max(<-respCh)
-		fmt.Printf("got %v/%v blocks.\n", i+2, blocks+1)
+		//fmt.Printf("[%v] got %v/%v blocks.\n", time.Now() , i+2, blocks+1)
 	}
-	fmt.Printf("received all blocks\n\n")
+	//fmt.Printf("received all blocks\n\n")
 
 	return msg.NewResult(max.Hash, max.Nonce, request.Lower, request.Upper)
 }

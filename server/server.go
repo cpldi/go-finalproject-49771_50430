@@ -2,6 +2,7 @@ package main
 
 import (
 	msg "bitcoin_miner/message"
+	"bitcoin_miner/server/cache"
 	"bitcoin_miner/server/miner"
 	"fmt"
 	"log"
@@ -17,21 +18,29 @@ func startServer(port int) error {
 	if err != nil {
 		return err
 	}
-	m := miner.NewMiner(10, 10, 10, 10)
+	m := miner.NewMiner(100, 100, 50, 50)
+	c := cache.New(0)
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
 			fmt.Println(err)
 			continue
 		}
-		go handleConnection(conn, m)
+		go handleConnection(conn, m,c)
 	}
 }
 
-func handleConnection(conn net.Conn, m *miner.Miner) {
+func handleConnection(conn net.Conn, m *miner.Miner, c cache.Cache) {
 	defer conn.Close()
 
 	req, err := msg.FromJSONReader(conn)
+	v, ok := c.Get(req.String())
+	if ok {
+		LOGF.Printf("Serving from cache %v \n", req)
+		json,_ := v.(*msg.Message).ToJSON()
+		conn.Write(json)
+		return
+	}
 
 	if err != nil && isCorrect(req) {
 		fmt.Println(err)
@@ -40,6 +49,7 @@ func handleConnection(conn net.Conn, m *miner.Miner) {
 
 	LOGF.Printf("Submiting Job %v \n", req)
 	resp := m.SubmitJob(req)
+	c.Set(req.String(),resp)
 
 	respJson, err := resp.ToJSON()
 

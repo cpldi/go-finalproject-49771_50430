@@ -74,6 +74,13 @@ func New(expTime time.Duration) Cache {
 	return &c
 }
 
+func returnExp(c *simpleCache) int64{
+	if c.expTime == 0 {
+		return 0
+	}
+	return  time.Now().Add(c.expTime).Unix()
+}
+
 func (c *simpleCache) cacheHandler() {
 	wait := time.Millisecond * 100
 	to := time.After(wait)
@@ -85,7 +92,7 @@ func (c *simpleCache) cacheHandler() {
 		case el := <-c.inchan:
 			c.entries[el.key] = entry{
 				obj: el.e,
-				exp: time.Now().Add(c.expTime).Unix(),
+				exp: returnExp(c),
 			}
 		case el := <-c.outchan:
 			i, ok := c.entries[el.reqKey]
