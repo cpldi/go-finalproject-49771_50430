@@ -99,12 +99,15 @@ func min(x, y uint64) uint64 {
 
 func submitBlocks(blocks uint64, in chan<- workReq, request *msg.Message, respCh chan workResp) {
 	var i uint64
+
+	fmt.Printf("wants to submit %v blocks.\n", blocks+1)
 	for i = 0; i <= blocks; i++ {
 		in <- workReq{
 			request.Data,
 			request.Lower + THRESHOLD_BLOCK_SIZE*i,
 			min(request.Lower+THRESHOLD_BLOCK_SIZE*(i+1)-1, request.Upper),
 			respCh}
+		fmt.Printf("submitted block %v.\n", i+1)
 	}
 	fmt.Printf("submitted %v blocks.\n", blocks+1)
 }
@@ -112,7 +115,7 @@ func submitBlocks(blocks uint64, in chan<- workReq, request *msg.Message, respCh
 func (m *Miner) SubmitJob(request *msg.Message) *msg.Message {
 
 	blocks := (request.Upper - request.Lower) / THRESHOLD_BLOCK_SIZE
-	respCh := make(chan workResp, 10)
+	respCh := make(chan workResp, blocks)
 
 	if blocks < THRESHOLD_LIGHT_HEAVY {
 		submitBlocks(blocks, m.inL, request, respCh)
@@ -126,7 +129,7 @@ func (m *Miner) SubmitJob(request *msg.Message) *msg.Message {
 		max = max.max(<-respCh)
 		fmt.Printf("got %v/%v blocks.\n", i+2, blocks+1)
 	}
-	fmt.Printf("received all blocks\n")
+	fmt.Printf("received all blocks\n\n")
 
 	return msg.NewResult(max.Hash, max.Nonce, request.Lower, request.Upper)
 }
