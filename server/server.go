@@ -10,42 +10,41 @@ import (
 	"strconv"
 )
 
-func startServer(port int) error{
-	address := fmt.Sprintf(":%v",port)
-	LOGF.Printf("Starting server at %v\n",address)
+func startServer(port int) error {
+	address := fmt.Sprintf(":%v", port)
+	LOGF.Printf("Starting server at %v\n", address)
 	ln, err := net.Listen("tcp", address)
 	if err != nil {
 		return err
 	}
+	m := miner.NewMiner(10, 10, 10, 10)
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
 			fmt.Println(err)
 			continue
 		}
-		go handleConnection(conn)
+		go handleConnection(conn, m)
 	}
 }
 
-func handleConnection(conn net.Conn) {
+func handleConnection(conn net.Conn, m *miner.Miner) {
+	defer conn.Close()
 
 	req, err := msg.FromJSONReader(conn)
 
-	if err != nil && isCorrect(req){
+	if err != nil && isCorrect(req) {
 		fmt.Println(err)
-		conn.Close()
 		return
 	}
 
-	LOGF.Printf("Submiting Job %v \n",req)
-	respChan,err := miner.SubmitJob(req)
+	LOGF.Printf("Submiting Job %v \n", req)
+	resp := m.SubmitJob(req)
 
-	resp := <-respChan
-	respJson,err := resp.ToJSON()
+	respJson, err := resp.ToJSON()
 
 	if err != nil {
 		fmt.Println(err)
-		conn.Close()
 		return
 	}
 
@@ -53,9 +52,9 @@ func handleConnection(conn net.Conn) {
 }
 
 func isCorrect(req *msg.Message) bool {
-	return  req.Type == msg.Request &&
-			req.Nonce >= req.Lower &&
-			len(req.Data) > 0
+	return req.Type == msg.Request &&
+		req.Upper >= req.Lower &&
+		len(req.Data) > 0
 }
 
 var LOGF *log.Logger
@@ -91,6 +90,4 @@ func main() {
 
 	startServer(port)
 	fmt.Println("Server listening on port", port)
-
-	// TODO: implement this!
 }

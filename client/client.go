@@ -22,36 +22,36 @@ func main() {
 		return
 	}
 
-	response, err := sendRequest(message,host,max)
+	response, err := sendRequest(message, host, max)
 	if err != nil {
-		fmt.Printf("Error parsing response : %v  ",err)
+		fmt.Printf("Error parsing response : %v  ", err)
 		return
 	}
 	printResult(response.Hash, response.Nonce)
 }
 
-func sendRequest(message string, host string, max uint64) (*msg.Message,error) {
+func sendRequest(message string, host string, max uint64) (*msg.Message, error) {
 	conn, err := net.Dial("tcp", host)
 
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 
-	req := msg.NewRequest(message,0,max)
-	jsonb,err := req.ToJSON()
-	_,err = conn.Write(jsonb)
+	req := msg.NewRequest(message, 0, max)
+	jsonb, err := req.ToJSON()
+	_, err = conn.Write(jsonb)
 
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 
-	response , err := msg.FromJSONReader(conn)
+	response, err := msg.FromJSONReader(conn)
 
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 
-	return response,nil
+	return response, nil
 }
 
 // printResult prints the final result to stdout.
