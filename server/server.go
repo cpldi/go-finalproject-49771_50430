@@ -4,11 +4,18 @@ import (
 	msg "bitcoin_miner/message"
 	"bitcoin_miner/server/cache"
 	"bitcoin_miner/server/miner"
+	"context"
 	"fmt"
+	"golang.org/x/time/rate"
 	"log"
 	"net"
 	"os"
 	"strconv"
+)
+
+const (
+	RATE = 1
+	BURST = 1
 )
 
 func startServer(port int) error {
@@ -18,15 +25,27 @@ func startServer(port int) error {
 	if err != nil {
 		return err
 	}
-	m := miner.NewMiner(100, 100, 50, 50)
+
+	a := rate.NewLimiter(rate.Limit(RATE),BURST)
+	ctxt := context.Background()
+	ctxt, _ = context.WithCancel(ctxt)
+
+	m := miner.NewMiner(ctxt,100, 100, 50, 50)
 	c := cache.New(0)
+
+
 	for {
+		if err := a.Wait(ctxt); err != nil {
+			fmt.Printf("%v\n", err)
+			return err
+		}
+
 		conn, err := ln.Accept()
 		if err != nil {
 			fmt.Println(err)
 			continue
 		}
-		go handleConnection(conn, m,c)
+		go handleConnection(conn, m, c)
 	}
 }
 

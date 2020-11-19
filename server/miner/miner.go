@@ -15,7 +15,7 @@ const (
 type Miner struct {
 	inL    chan workReq
 	inH    chan workReq
-	cancel context.CancelFunc
+	ctxt   context.Context
 }
 
 type workReq struct {
@@ -37,9 +37,7 @@ func (r workResp) max(other workResp) workResp {
 	return other
 }
 
-func NewMiner(capL, capH, nWorkerL, nWorkerH int) *Miner {
-	ctxt := context.Background()
-	ctxt, cancel := context.WithCancel(ctxt)
+func NewMiner(ctxt context.Context, capL, capH, nWorkerL, nWorkerH int) *Miner {
 	inLight := make(chan workReq, capL)
 	inHeavy := make(chan workReq, capH)
 
@@ -49,7 +47,7 @@ func NewMiner(capL, capH, nWorkerL, nWorkerH int) *Miner {
 	for i := 0; i < nWorkerH; i++ {
 		go Worker(ctxt, i, inHeavy, inLight)
 	}
-	return &Miner{inLight, inHeavy, cancel}
+	return &Miner{inLight, inHeavy, ctxt}
 }
 
 func Worker(ctxt context.Context, id int, inDefault, inOther <-chan workReq) {
@@ -84,10 +82,6 @@ func computeHigherHash(req workReq,id int) {
 	}
 	//fmt.Printf("[%v] [%v] computed between %v and %v\n",id, time.Now() , req.Lower, req.Upper)
 	req.workCh <- workResp{max, maxi}
-}
-
-func (m *Miner) Cancel() {
-	m.cancel()
 }
 
 func min(x, y uint64) uint64 {
