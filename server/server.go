@@ -33,7 +33,6 @@ func startServer(port int) error {
 	m := miner.NewMiner(ctxt,100, 100, 50, 50)
 	c := cache.New(0)
 
-
 	for {
 		if err := a.Wait(ctxt); err != nil {
 			fmt.Printf("%v\n", err)

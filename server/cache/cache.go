@@ -20,12 +20,11 @@ type entry struct {
 }
 
 /**
-outEntry gives support to retrive elements from
+outEntry gives support to retrieve elements from
 the cache
 */
 type outEntry struct {
 	respchan chan *interface{}
-	suc      bool
 	reqKey   string
 }
 
@@ -83,12 +82,12 @@ func returnExp(c *simpleCache) int64{
 
 func (c *simpleCache) cacheHandler() {
 	wait := time.Millisecond * 100
-	to := time.After(wait)
+	timeout := time.After(wait)
 	for {
 		select {
-		case <-to:
+		case <-timeout:
 			c.evictEntries()
-			to = time.After(wait)
+			timeout = time.After(wait)
 		case el := <-c.inchan:
 			c.entries[el.key] = entry{
 				obj: el.e,
@@ -114,13 +113,12 @@ func (c *simpleCache) evictEntries() {
 }
 
 /**
-Get retrives a element from the Cache
+Get retrieves an element from the Cache
 */
 func (c *simpleCache) Get(k string) (interface{}, bool) {
 	ch := make(chan *interface{})
 	c.outchan <- outEntry{
 		respchan: ch,
-		suc:      false,
 		reqKey:   k,
 	}
 	el := <-ch
@@ -131,7 +129,7 @@ func (c *simpleCache) Get(k string) (interface{}, bool) {
 }
 
 /**
-Set puts a element in the Cache
+Set puts an element in the Cache
 */
 func (c *simpleCache) Set(k string, x interface{}) {
 	c.inchan <- inEntry{
