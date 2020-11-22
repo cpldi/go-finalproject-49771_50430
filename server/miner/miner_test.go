@@ -29,7 +29,7 @@ func TestRandMiner(t *testing.T) {
 
 	//test setup
 	rand.Seed(time.Now().UnixNano())
-	var size uint64 = 6000000
+	var size uint64 = 10000000
 	nTests := 30
 	if testing.Short() { // Use -short for short test
 		size = 200
